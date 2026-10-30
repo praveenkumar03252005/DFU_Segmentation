@@ -111,6 +111,24 @@ async def list_demo_samples():
     ]
 
 
+import urllib.request
+
+HF_CDN_BASE = "https://huggingface.co/spaces/praveen202/Diabetic_Foot_Ulcer_Segmentation/resolve/main"
+
+def ensure_dataset_file(rel_path: str) -> Path:
+    """Retrieves dataset assets (images/masks) on-demand from Hugging Face CDN if missing."""
+    abs_path = PROJECT_ROOT / rel_path
+    if not abs_path.exists():
+        url = f"{HF_CDN_BASE}/{rel_path}"
+        logger.info(f"Downloading dataset asset on-demand: {url}")
+        abs_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            urllib.request.urlretrieve(url, str(abs_path))
+        except Exception as e:
+            logger.error(f"Failed to retrieve {url}: {e}")
+    return abs_path
+
+
 @router.get("/demo-samples/{sample_id}/image")
 async def get_demo_image(sample_id: str):
     """Safely retrieves a demonstration image."""
@@ -122,7 +140,7 @@ async def get_demo_image(sample_id: str):
     if not sample:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sample not found")
 
-    image_path = PROJECT_ROOT / sample["image_rel_path"]
+    image_path = ensure_dataset_file(sample["image_rel_path"])
     if not image_path.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sample image file not found on server")
 
@@ -141,7 +159,7 @@ async def get_demo_ground_truth(sample_id: str):
     if not sample or not sample.get("gt_rel_path"):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No ground truth available for this sample")
 
-    gt_path = PROJECT_ROOT / sample["gt_rel_path"]
+    gt_path = ensure_dataset_file(sample["gt_rel_path"])
     if not gt_path.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ground truth mask file not found on server")
 
@@ -256,7 +274,7 @@ async def run_segmentation(
         if not sample:
             raise HTTPException(status_code=404, detail=f"Sample ID {sample_id} not found")
 
-        img_abs = PROJECT_ROOT / sample["image_rel_path"]
+        img_abs = ensure_dataset_file(sample["image_rel_path"])
         if not img_abs.exists():
             raise HTTPException(status_code=404, detail="Demonstration image file not found")
         pil_img = Image.open(img_abs)
@@ -277,7 +295,7 @@ async def run_segmentation(
             )
 
         if sample.get("gt_rel_path"):
-            gt_abs = PROJECT_ROOT / sample["gt_rel_path"]
+            gt_abs = ensure_dataset_file(sample["gt_rel_path"])
             if gt_abs.exists():
                 pil_gt = Image.open(gt_abs)
 
