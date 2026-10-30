@@ -41,6 +41,20 @@ class ModelRegistry:
                 hasher.update(chunk)
         return hasher.hexdigest()
 
+    def _ensure_model_file(self, abs_path: Path):
+        """Automatically downloads the Stage 16 frozen model from Hugging Face CDN if missing."""
+        if not abs_path.exists():
+            filename = abs_path.name
+            url = f"https://huggingface.co/spaces/praveen202/Diabetic_Foot_Ulcer_Segmentation/resolve/main/models/{filename}"
+            logger.info(f"Model file missing locally. Downloading {filename} from {url}...")
+            abs_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                import urllib.request
+                urllib.request.urlretrieve(url, str(abs_path))
+                logger.info(f"Successfully downloaded {filename} ({abs_path.stat().st_size / (1024*1024):.2f} MB)")
+            except Exception as e:
+                logger.error(f"Failed to download model {filename}: {e}", exc_info=True)
+
     def _load_catalog(self):
         """Loads and verifies the model catalog from config/models.json."""
         if not MODELS_CATALOG_FILE.exists():
@@ -57,6 +71,9 @@ class ModelRegistry:
             # Verify physical existence
             rel_path = entry["model_path"]
             abs_path = PROJECT_ROOT / rel_path
+
+            # Ensure model file is present
+            self._ensure_model_file(abs_path)
 
             if not abs_path.exists():
                 logger.error(f"Model file missing for {model_id} at {abs_path}")
