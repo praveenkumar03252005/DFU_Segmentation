@@ -53,6 +53,10 @@ class DFUValidationResult:
     category_scores: Dict[str, float]
     segmentation_allowed: bool
 
+    @property
+    def is_accepted(self) -> bool:
+        return self.segmentation_allowed
+
 
 class DFUInputValidator:
     """
