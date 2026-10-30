@@ -196,8 +196,9 @@ async def validate_image(image: UploadFile = File(...)):
             segmentation_allowed=True
         )
 
+    dec_val = domain_val.decision.value if hasattr(domain_val.decision, "value") else str(domain_val.decision)
     logger.info(
-        f"[API VALIDATE: DOMAIN] Decision: {domain_val.decision.value} | "
+        f"[API VALIDATE: DOMAIN] Decision: {dec_val} | "
         f"DFU Score: {domain_val.dfu_score*100:.2f}% | "
         f"Allowed: {domain_val.segmentation_allowed}"
     )
@@ -205,7 +206,7 @@ async def validate_image(image: UploadFile = File(...)):
     return {
         "valid": domain_val.segmentation_allowed,
         "is_dfu_domain": domain_val.segmentation_allowed,
-        "domain_decision": domain_val.decision.value,
+        "domain_decision": dec_val,
         "dfu_score": domain_val.dfu_score,
         "threshold": domain_val.threshold,
         "top_detected_category": domain_val.top_detected_category,
@@ -302,8 +303,9 @@ async def run_segmentation(
             )
 
         if not domain_val.segmentation_allowed:
+            dec_val = domain_val.decision.value if hasattr(domain_val.decision, "value") else str(domain_val.decision)
             logger.warning(
-                f"[SEGMENT GUARD: REJECT DOMAIN] Decision: {domain_val.decision.value} | "
+                f"[SEGMENT GUARD: REJECT DOMAIN] Decision: {dec_val} | "
                 f"DFU Score: {domain_val.dfu_score*100:.2f}% < {domain_val.threshold*100:.1f}% | "
                 f"Top Category: {domain_val.top_detected_category} | "
                 f"Halting inference pipeline before segmentation model."
