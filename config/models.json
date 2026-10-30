@@ -1,0 +1,37 @@
+{
+  "models": [
+    {
+      "model_id": "unet_boundary_seed42_pt2",
+      "architecture": "U-Net",
+      "display_name": "U-Net Boundary-only (Stage 16 Selected Engineering Candidate)",
+      "reader_facing_label": "Stage16 selected engineering candidate",
+      "condition": "Boundary-only",
+      "seed": 42,
+      "input_size": {
+        "width": 512,
+        "height": 384
+      },
+      "threshold": 0.5,
+      "threshold_status": "Threshold: 0.50 \u2014 Frozen",
+      "export_format": "PyTorch 2 Export (PT2)",
+      "sha256": "3b347d9304086d0ddab2e8aca290dbdcfdab065cc44b6c8904edd35ecc657b17",
+      "checkpoint_sha256": "3b347d9304086d0ddab2e8aca290dbdcfdab065cc44b6c8904edd35ecc657b17",
+      "certification_status": "Stage16 Deployment-Certified",
+      "certification_badge": "Stage16 Certified Candidate",
+      "is_primary_candidate": true,
+      "is_default": true,
+      "enabled": true,
+      "device_requirements": "Host CPU Runtime",
+      "model_path": "models/dfu_unet_boundary_seed42_512x384_bs1.pt2",
+      "engineering_metrics": {
+        "parameters": "31.04 M",
+        "model_file_size": "96.28 MB",
+        "latency_mean_ms": "114 ms (CPU)",
+        "parity_max_abs_logit_diff": "0.000000",
+        "parity_max_abs_prob_diff": "0.000000",
+        "parity_mismatch_pixels": 0,
+        "parity_verification_cohort": "192 eligible FUSeg public-validation images"
+      }
+    }
+  ]
+}
