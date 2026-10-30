@@ -148,75 +148,85 @@ async def get_demo_ground_truth(sample_id: str):
     return FileResponse(gt_path, media_type="image/png")
 
 
-@router.post("/validate-image", response_model=ImageValidationResponse)
+@router.post("/validate-image")
 async def validate_image(image: UploadFile = File(...)):
     """
     Preflight image validation without executing inference.
     1. Validates file integrity, decodability, dimensions, and size.
     2. Runs upstream DFU domain validator to reject out-of-domain images (cats, dogs, faces, etc.).
     """
-    contents = await image.read()
-
-    # Step 1: Basic file integrity validation
-    file_val = dfu_validator.validate_file(contents, image.filename)
-    if not file_val.is_valid or file_val.pil_image is None:
-        logger.warning(f"[API VALIDATE: REJECT FILE] {file_val.error_detail}")
-        return {
-            "valid": False,
-            "is_dfu_domain": False,
-            "domain_decision": DomainDecision.REJECT_NON_DFU.value,
-            "dfu_score": 0.0,
-            "threshold": DFU_VALIDATION_THRESHOLD,
-            "top_detected_category": "Corrupted or non-image file",
-            "width": 0,
-            "height": 0,
-            "aspect_ratio": 0.0,
-            "format": "INVALID",
-            "channels": 0,
-            "message": "Invalid file. Please upload a valid image file."
-        }
-
-    pil_img = file_val.pil_image
-    channels = len(pil_img.getbands())
-    aspect_ratio = round(pil_img.width / max(pil_img.height, 1), 3)
-
-    # Step 2: Upstream DFU domain validation
+    import traceback
+    from fastapi.responses import JSONResponse
     try:
-        domain_val = dfu_validator.validate_domain(pil_img)
-    except Exception as e:
-        logger.error(f"[API VALIDATE: DOMAIN ERROR] {e}", exc_info=True)
-        from app.validation.dfu_validator import DFUValidationResult, DomainDecision, DFU_VALIDATION_THRESHOLD
-        domain_val = DFUValidationResult(
-            decision=DomainDecision.VALID_DFU_INPUT,
-            dfu_score=0.98,
-            threshold=DFU_VALIDATION_THRESHOLD,
-            top_detected_category="Clinical Photograph",
-            user_message="Valid clinical DFU image confirmed.",
-            category_scores={},
-            segmentation_allowed=True
+        contents = await image.read()
+
+        # Step 1: Basic file integrity validation
+        file_val = dfu_validator.validate_file(contents, image.filename)
+        if not file_val.is_valid or file_val.pil_image is None:
+            logger.warning(f"[API VALIDATE: REJECT FILE] {file_val.error_detail}")
+            return {
+                "valid": False,
+                "is_dfu_domain": False,
+                "domain_decision": DomainDecision.REJECT_NON_DFU.value,
+                "dfu_score": 0.0,
+                "threshold": DFU_VALIDATION_THRESHOLD,
+                "top_detected_category": "Corrupted or non-image file",
+                "width": 0,
+                "height": 0,
+                "aspect_ratio": 0.0,
+                "format": "INVALID",
+                "channels": 0,
+                "message": "Invalid file. Please upload a valid image file."
+            }
+
+        pil_img = file_val.pil_image
+        channels = len(pil_img.getbands())
+        aspect_ratio = round(pil_img.width / max(pil_img.height, 1), 3)
+
+        # Step 2: Upstream DFU domain validation
+        try:
+            domain_val = dfu_validator.validate_domain(pil_img)
+        except Exception as e:
+            logger.error(f"[API VALIDATE: DOMAIN ERROR] {e}\n{traceback.format_exc()}")
+            from app.validation.dfu_validator import DFUValidationResult, DomainDecision, DFU_VALIDATION_THRESHOLD
+            domain_val = DFUValidationResult(
+                decision=DomainDecision.VALID_DFU_INPUT,
+                dfu_score=0.98,
+                threshold=DFU_VALIDATION_THRESHOLD,
+                top_detected_category="Clinical Photograph",
+                user_message="Valid clinical DFU image confirmed.",
+                category_scores={},
+                segmentation_allowed=True
+            )
+
+        dec_val = domain_val.decision.value if hasattr(domain_val.decision, "value") else str(domain_val.decision)
+        logger.info(
+            f"[API VALIDATE: DOMAIN] Decision: {dec_val} | "
+            f"DFU Score: {domain_val.dfu_score*100:.2f}% | "
+            f"Allowed: {domain_val.segmentation_allowed}"
         )
 
-    dec_val = domain_val.decision.value if hasattr(domain_val.decision, "value") else str(domain_val.decision)
-    logger.info(
-        f"[API VALIDATE: DOMAIN] Decision: {dec_val} | "
-        f"DFU Score: {domain_val.dfu_score*100:.2f}% | "
-        f"Allowed: {domain_val.segmentation_allowed}"
-    )
-
-    return {
-        "valid": domain_val.segmentation_allowed,
-        "is_dfu_domain": domain_val.segmentation_allowed,
-        "domain_decision": dec_val,
-        "dfu_score": domain_val.dfu_score,
-        "threshold": domain_val.threshold,
-        "top_detected_category": domain_val.top_detected_category,
-        "width": pil_img.width,
-        "height": pil_img.height,
-        "aspect_ratio": aspect_ratio,
-        "format": pil_img.format or "RGB",
-        "channels": channels,
-        "message": domain_val.user_message
-    }
+        return {
+            "valid": domain_val.segmentation_allowed,
+            "is_dfu_domain": domain_val.segmentation_allowed,
+            "domain_decision": dec_val,
+            "dfu_score": domain_val.dfu_score,
+            "threshold": domain_val.threshold,
+            "top_detected_category": domain_val.top_detected_category,
+            "width": pil_img.width,
+            "height": pil_img.height,
+            "aspect_ratio": aspect_ratio,
+            "format": pil_img.format or "RGB",
+            "channels": channels,
+            "message": domain_val.user_message
+        }
+    except Exception as exc:
+        tb = traceback.format_exc()
+        logger.error(f"[FATAL VALIDATE ERROR] {exc}\n{tb}")
+        return JSONResponse(
+            status_code=400,
+            content={"error": str(exc), "traceback": tb.split("\n")[-6:], "message": f"Validation error: {exc}"}
+        )
 
 
 @router.post("/segment", response_model=InferenceResponseSchema)
