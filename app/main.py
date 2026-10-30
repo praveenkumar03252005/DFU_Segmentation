@@ -4,10 +4,17 @@ Main FastAPI Application Entrypoint for DFU Live Segmentation System.
 
 from __future__ import annotations
 
+import gc
 import logging
 import os
 import urllib.request
 from contextlib import asynccontextmanager
+
+import torch
+# Restrict PyTorch thread-pool memory on single/low-core cloud instances
+torch.set_num_threads(1)
+torch.set_num_interop_threads(1)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -48,6 +55,8 @@ async def lifespan(app: FastAPI):
 
     device_status = model_registry.get_device_status()
     logger.info(f"Hardware compute environment: {device_status['device_name']} ({device_status['device_type']})")
+    
+    gc.collect()
     try:
         active_id = model_registry.active_model_id
         logger.info(f"Pre-warming default certified model: {active_id}")
@@ -55,6 +64,8 @@ async def lifespan(app: FastAPI):
         logger.info(f"Default certified model {active_id} loaded successfully and ready.")
     except Exception as e:
         logger.error(f"Failed to pre-warm default model: {e}", exc_info=True)
+    
+    gc.collect()
     yield
     logger.info("Shutting down DFU Live Segmentation System Backend...")
 
