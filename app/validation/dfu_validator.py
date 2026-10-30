@@ -110,10 +110,8 @@ class DFUInputValidator:
                 self.text_features_cached = torch.zeros((len(self.all_labels), 512), dtype=torch.bfloat16)
 
             self.processor = CLIPImageProcessor.from_pretrained(self.model_id)
-            self.vision_model = CLIPVisionModelWithProjection.from_pretrained(
-                self.model_id,
-                dtype=torch.bfloat16
-            )
+            self.vision_model = CLIPVisionModelWithProjection.from_pretrained(self.model_id)
+            self.vision_model = self.vision_model.to(torch.bfloat16)
             self.vision_model.to(self.device)
             self.vision_model.eval()
             gc.collect()
