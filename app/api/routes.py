@@ -164,7 +164,7 @@ async def validate_image(image: UploadFile = File(...)):
         return {
             "valid": False,
             "is_dfu_domain": False,
-            "domain_decision": DomainDecision.REJECT.value,
+            "domain_decision": DomainDecision.REJECT_NON_DFU.value,
             "dfu_score": 0.0,
             "threshold": DFU_VALIDATION_THRESHOLD,
             "top_detected_category": "Corrupted or non-image file",
@@ -190,7 +190,7 @@ async def validate_image(image: UploadFile = File(...)):
 
     return {
         "valid": domain_val.segmentation_allowed,
-        "is_dfu_domain": domain_val.is_accepted,
+        "is_dfu_domain": domain_val.segmentation_allowed,
         "domain_decision": domain_val.decision.value,
         "dfu_score": domain_val.dfu_score,
         "threshold": domain_val.threshold,
