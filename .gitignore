@@ -1,0 +1,12 @@
+models/*.pt2
+models/*.pt
+models/*.pth
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv
+venv/
+runtime/
+exports/*.zip
+.DS_Store
